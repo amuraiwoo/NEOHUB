@@ -1893,135 +1893,64 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/amuraiwoo/burain/refs
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/amuraiwoo/brain/refs/heads/main/2.txt"))()
 -- ============================================================
--- FLOAT QUICK TOGGLE BUTTON (Independent)
+-- QUICK TOGGLE BUTTONS (TOP RIGHT)
 -- ============================================================
 local player = game:GetService("Players").LocalPlayer
 local pGui = player:WaitForChild("PlayerGui")
 
--- 既存の同名GUIがあれば削除して重複を防止
-if pGui:FindFirstChild("ZAY_QuickFloat") then
-    pGui:FindFirstChild("ZAY_QuickFloat"):Destroy()
+-- 既存のGUIがあれば削除して重複を防止
+if pGui:FindFirstChild("ZAY_QuickButtons_Right") then
+    pGui:FindFirstChild("ZAY_QuickButtons_Right"):Destroy()
 end
 
-local floatGui = Instance.new("ScreenGui")
-floatGui.Name = "ZAY_QuickFloat"
-floatGui.ResetOnSpawn = false
-floatGui.DisplayOrder = 100
-floatGui.Parent = pGui
+local quickGui = Instance.new("ScreenGui")
+quickGui.Name = "ZAY_QuickButtons_Right"
+quickGui.ResetOnSpawn = false
+quickGui.DisplayOrder = 100
+quickGui.Parent = pGui
 
--- メインボタン作成
-local btn = Instance.new("TextButton")
-btn.Name = "FloatBtn"
-btn.Size = UDim2.new(0, 110, 0, 45)
-btn.Position = UDim2.new(0.5, -55, 0.8, 0) -- 画面下中央
-btn.BackgroundColor3 = Color3.fromRGB(15, 15, 15) -- 黒
-btn.TextColor3 = Color3.fromRGB(255, 255, 255) -- 白
-btn.Text = "FLOAT: OFF"
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 14
-btn.AutoButtonColor = true
-btn.Active = true
-btn.Draggable = true -- 自由に動かせる
-btn.Parent = floatGui
+-- ボタンの共通設定
+local BUTTON_SIZE = UDim2.new(0, 110, 0, 45)
+local BASE_POS_X = 1.0 -- 画面右端
+local BASE_OFFSET_X = -10 -- 右端からの隙間
+local BASE_POS_Y = 0.0 -- 画面上端
+local BASE_OFFSET_Y = 10 -- 上端からの隙間
+local BUTTON_SPACING = 55 -- ボタン同士の間隔
 
--- 角を丸くする
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = btn
+-- 共通のデザインを適用する関数
+local function styleButton(btn)
+    btn.Size = BUTTON_SIZE
+    btn.BackgroundColor3 = Color3.fromRGB(15, 15, 15) -- 黒
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255) -- 白
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
+    btn.AutoButtonColor = true
+    btn.Active = true
+    btn.Draggable = true -- 自由に動かせる
 
--- 枠線（少しグレーで高級感を出す）
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 2
-stroke.Color = Color3.fromRGB(60, 60, 60)
-stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-stroke.Parent = btn
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = btn
 
--- 状態管理
-local isFloating = false
-
--- クリックイベント
-btn.MouseButton1Click:Connect(function()
-    isFloating = not isFloating
-    
-    -- 元のスクリプトの変数を更新（設定画面との同期）
-    Enabled.Float = isFloating
-    
-    if isFloating then
-        -- 浮遊開始（元のスクリプトの関数を呼び出す）
-        if typeof(startFloat) == "function" then
-            startFloat()
-            btn.Text = "FLOAT: ON"
-            btn.TextColor3 = Color3.fromRGB(0, 255, 127) -- ONの時は緑
-            btn.UIStroke.Color = Color3.fromRGB(0, 255, 127)
-        end
-    else
-        -- 浮遊停止（元のスクリプトの関数を呼び出す）
-        if typeof(stopFloat) == "function" then
-            stopFloat()
-            btn.Text = "FLOAT: OFF"
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255) -- OFFは白
-            btn.UIStroke.Color = Color3.fromRGB(60, 60, 60)
-        end
-    end
-    
-    -- 設定メニュー側のトグルの見た目も同期させる（存在する場合）
-    if VisualSetters and VisualSetters.Float then
-        VisualSetters.Float(isFloating, true)
-    end
-    
-    -- クリック音
-    if typeof(playSound) == "function" then
-        playSound("rbxassetid://6895079813", 0.3, isFloating and 1.1 or 0.9)
-    end
-end)
-
--- キャラクターが死んで復活した時の処理
-player.CharacterAdded:Connect(function()
-    task.wait(1)
-    if isFloating then
-        -- 復活しても浮遊状態を維持
-        if typeof(startFloat) == "function" then startFloat() end
-    end
-end)
--- ============================================================
--- AIMBOT & SPAM BAT TOGGLE BUTTON
--- ============================================================
-local aimGui = Instance.new("ScreenGui")
-aimGui.Name = "ZAY_QuickAimbot"
-aimGui.ResetOnSpawn = false
-aimGui.DisplayOrder = 101
-aimGui.Parent = pGui
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Color = Color3.fromRGB(60, 60, 60)
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = btn
+end
 
 -- ============================================================
--- FIXED AIMBOT & SPAM BAT TOGGLE BUTTON
+-- 1. AIMBOT BUTTON (右上 1番目)
 -- ============================================================
-local aimGui = Instance.new("ScreenGui")
-aimGui.Name = "ZAY_QuickAimbot_Fixed"
-aimGui.ResetOnSpawn = false
-aimGui.DisplayOrder = 101
-aimGui.Parent = pGui
-
 local aimBtn = Instance.new("TextButton")
-aimBtn.Size = UDim2.new(0, 110, 0, 45)
-aimBtn.Position = UDim2.new(0.5, -55, 0.65, 0) -- Floatボタンより少し上
-aimBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+aimBtn.Name = "AimbotBtn"
+-- アンカーポイントを右上に設定 (1, 0)
+aimBtn.AnchorPoint = Vector2.new(1, 0)
+-- 画面右上からの絶対位置
+aimBtn.Position = UDim2.new(BASE_POS_X, BASE_OFFSET_X, BASE_POS_Y, BASE_OFFSET_Y)
 aimBtn.Text = "AIMBOT: OFF"
-aimBtn.Font = Enum.Font.GothamBold
-aimBtn.TextSize = 14
-aimBtn.Active = true
-aimBtn.Draggable = true
-aimBtn.Parent = aimGui
-
-local aimCorner = Instance.new("UICorner")
-aimCorner.CornerRadius = UDim.new(0, 12)
-aimCorner.Parent = aimBtn
-
-local aimStroke = Instance.new("UIStroke")
-aimStroke.Thickness = 2
-aimStroke.Color = Color3.fromRGB(60, 60, 60)
-aimStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-aimStroke.Parent = aimBtn
+styleButton(aimBtn)
+aimBtn.Parent = quickGui
 
 -- 内部状態
 local isAimbotActive = false
@@ -2030,10 +1959,8 @@ aimBtn.MouseButton1Click:Connect(function()
     isAimbotActive = not isAimbotActive
     
     -- 1. Aimbotの切り替え (abToggle関数を直接実行)
-    -- 元のスクリプトのabActiveとisAimbotActiveを同期させてから呼び出し
     if typeof(abToggle) == "function" then
-        -- 現在の状態と違う場合のみ実行して切り替える
-        if abActive ~= isAimbotActive then
+        if abActive ~= isAimbotActive then -- 現在の状態と違う場合のみ実行
             abToggle()
         end
     end
@@ -2051,19 +1978,64 @@ aimBtn.MouseButton1Click:Connect(function()
     -- 見た目の更新
     if isAimbotActive then
         aimBtn.Text = "AIMBOT: ON"
-        aimBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
+        aimBtn.TextColor3 = Color3.fromRGB(255, 50, 50) -- ON時は赤
         aimBtn.UIStroke.Color = Color3.fromRGB(255, 50, 50)
     else
         aimBtn.Text = "AIMBOT: OFF"
-        aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255) -- OFFは白
         aimBtn.UIStroke.Color = Color3.fromRGB(60, 60, 60)
     end
 
-    -- メインGUI側のスイッチも同期
-    if VisualSetters and VisualSetters.Aimbot then
-        VisualSetters.Aimbot(isAimbotActive, true)
+    -- メインGUI側のスイッチも同期 (存在する場合)
+    if VisualSetters then
+        if VisualSetters.Aimbot then VisualSetters.Aimbot(isAimbotActive, true) end
+        if VisualSetters.SpamBat then VisualSetters.SpamBat(isAimbotActive, true) end
     end
-    if VisualSetters and VisualSetters.SpamBat then
-        VisualSetters.SpamBat(isAimbotActive, true)
+end)
+
+-- ============================================================
+-- 2. FLOAT BUTTON (右上 2番目 - AIMBOTの下)
+-- ============================================================
+local floatBtn = Instance.new("TextButton")
+floatBtn.Name = "FloatBtn"
+-- アンカーポイントを右上に設定
+floatBtn.AnchorPoint = Vector2.new(1, 0)
+-- AIMBOTボタンの下に配置
+floatBtn.Position = UDim2.new(BASE_POS_X, BASE_OFFSET_X, BASE_POS_Y, BASE_OFFSET_Y + BUTTON_SPACING)
+floatBtn.Text = "FLOAT: OFF"
+styleButton(floatBtn)
+floatBtn.Parent = quickGui
+
+-- 状態管理
+local isFloating = false
+
+-- クリックイベント
+floatBtn.MouseButton1Click:Connect(function()
+    isFloating = not isFloating
+    
+    -- 元のスクリプトの変数を更新 (設定画面との同期用)
+    Enabled.Float = isFloating
+    
+    if isFloating then
+        -- 浮遊開始（元のスクリプトの関数を直接呼び出す）
+        if typeof(startFloat) == "function" then
+            startFloat()
+            floatBtn.Text = "FLOAT: ON"
+            floatBtn.TextColor3 = Color3.fromRGB(0, 255, 127) -- ONの時は緑
+            floatBtn.UIStroke.Color = Color3.fromRGB(0, 255, 127)
+        end
+    else
+        -- 浮遊停止（元のスクリプトの関数を直接呼び出す）
+        if typeof(stopFloat) == "function" then
+            stopFloat()
+            floatBtn.Text = "FLOAT: OFF"
+            floatBtn.TextColor3 = Color3.fromRGB(255, 255, 255) -- OFFは白
+            floatBtn.UIStroke.Color = Color3.fromRGB(60, 60, 60)
+        end
+    end
+    
+    -- メインGUI側のスイッチも同期 (存在する場合)
+    if VisualSetters and VisualSetters.Float then
+        VisualSetters.Float(isFloating, true)
     end
 end)
