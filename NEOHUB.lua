@@ -2083,3 +2083,89 @@ aimBtn.MouseButton1Click:Connect(function()
         aimStroke.Color = Color3.fromRGB(60, 60, 60)
     end
 end)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+
+-- 虹色
+local function getRainbowColor()
+	return Color3.fromHSV((tick() % 5) / 5, 1, 1)
+end
+
+-- ハイライト追加
+local function addHighlight(char)
+	local hl = char:FindFirstChild("ESPHighlight")
+
+	if not hl then
+		hl = Instance.new("Highlight")
+		hl.Name = "ESPHighlight"
+		hl.FillTransparency = 0.3
+		hl.OutlineTransparency = 0
+		hl.Parent = char
+	end
+
+	return hl
+end
+
+-- Beam作成
+local function addBeam(fromChar, toChar)
+	local hrp1 = fromChar:WaitForChild("HumanoidRootPart")
+	local hrp2 = toChar:WaitForChild("HumanoidRootPart")
+
+	local a0 = Instance.new("Attachment", hrp1)
+	local a1 = Instance.new("Attachment", hrp2)
+
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = a0
+	beam.Attachment1 = a1
+	beam.Width0 = 0.1
+	beam.Width1 = 0.1
+	beam.FaceCamera = true
+	beam.Parent = hrp1
+
+	return beam
+end
+
+-- プレイヤー処理
+local function setupCharacter(plr, char)
+	if plr == localPlayer then return end
+
+	local myChar = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+
+	-- ハイライト
+	local hl = addHighlight(char)
+
+	-- 線
+	addBeam(myChar, char)
+
+	-- 色更新ループ（1つにまとめる）
+	RunService.RenderStepped:Connect(function()
+		if hl and hl.Parent then
+			local color = getRainbowColor()
+			hl.FillColor = color
+			hl.OutlineColor = color
+		end
+	end)
+end
+
+local function setupPlayer(plr)
+	if plr == localPlayer then return end
+
+	if plr.Character then
+		setupCharacter(plr, plr.Character)
+	end
+
+	plr.CharacterAdded:Connect(function(char)
+		setupCharacter(plr, char)
+	end)
+end
+
+-- 全プレイヤー
+for _, plr in ipairs(Players:GetPlayers()) do
+	setupPlayer(plr)
+end
+
+-- 新規
+Players.PlayerAdded:Connect(setupPlayer)
