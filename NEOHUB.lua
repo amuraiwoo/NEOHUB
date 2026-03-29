@@ -1974,35 +1974,30 @@ btn.MouseButton1Click:Connect(function()
     end
 end)
 -- ============================================================
--- QUICK AIMBOT & SPAM BAT BUTTON (BELOW FLOAT)
+-- QUICK AIMBOT & SPAM BAT & FLOAT (高度同期・修正版)
 -- ============================================================
--- 既存のAIMBOTボタンがあれば削除
 if pGui:FindFirstChild("ZAY_AimbotQuick") then
     pGui:FindFirstChild("ZAY_AimbotQuick"):Destroy()
 end
 
+local lp = game:GetService("Players").LocalPlayer
 local aimGui = Instance.new("ScreenGui")
 aimGui.Name = "ZAY_AimbotQuick"
 aimGui.ResetOnSpawn = false
-aimGui.DisplayOrder = 101
 aimGui.Parent = pGui
 
 local aimBtn = Instance.new("TextButton")
 aimBtn.Name = "AimbotBtn"
 aimBtn.Size = UDim2.new(0, 110, 0, 45)
-aimBtn.AnchorPoint = Vector2.new(1, 0)
--- Floatボタンの下に配置 (上から60pxの位置)
 aimBtn.Position = UDim2.new(1, -10, 0, 60) 
-
--- デザイン設定（Floatと統一）
+aimBtn.AnchorPoint = Vector2.new(1, 0)
 aimBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-aimBtn.Text = "AIMBOT: OFF"
+aimBtn.Text = "SYNC-FLOAT: OFF"
 aimBtn.Font = Enum.Font.GothamBold
 aimBtn.TextSize = 14
-aimBtn.AutoButtonColor = true
-aimBtn.Active = true
 aimBtn.Draggable = true
+aimBtn.Active = true
 aimBtn.Parent = aimGui
 
 local aimCorner = Instance.new("UICorner")
@@ -2015,59 +2010,117 @@ aimStroke.Color = Color3.fromRGB(60, 60, 60)
 aimStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 aimStroke.Parent = aimBtn
 
--- 内部状態管理
 local isAimbotActive = false
 
 aimBtn.MouseButton1Click:Connect(function()
     isAimbotActive = not isAimbotActive
     
-    -- 1. フラグの更新
-    Enabled.Aimbot = isAimbotActive
-    Enabled.SpamBat = isAimbotActive
-    
-    -- 2. AIMBOTの切り替え (abToggle関数を実行)
-    if typeof(abToggle) == "function" then
-        if abActive ~= isAimbotActive then
-            abToggle()
-        end
+    -- 1. フラグ同期
+    if Enabled then
+        Enabled.Float = isAimbotActive
+        Enabled.Aimbot = isAimbotActive
+        Enabled.SpamBat = isAimbotActive
     end
 
-    -- 3. SPAM BATの強制ループ開始
     if isAimbotActive then
-        -- 元のスクリプトの関数を叩く
+        -- 2. 機能起動
+        if typeof(abToggle) == "function" then abToggle() end
         if typeof(startSpamBat) == "function" then startSpamBat() end
-        
-        -- 【独自ループ】武器を持った時に自動で振る処理をバックグラウンドで開始
+        if typeof(startFloat) == "function" then startFloat() end
+
+        -- 3. 背後吸い付きループ
         task.spawn(function()
             while isAimbotActive do
-                local char = player.Character
-                local tool = char and char:FindFirstChildOfClass("Tool")
+                local target = (typeof(getClosestPlayer) == "function") and getClosestPlayer()
+                local myChar = lp.Character
+                local hrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
                 
-                -- 武器（Bat等）を持っていたらActivateイベントを発生させる
-                if tool then
-                    tool:Activate()
+                if target and target.Character and hrp then
+                    local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
+                    local tool = myChar:FindFirstChildOfClass("Tool")
+                    
+                    if tHRP then
+                        -- 物理慣性を殺す
+                        hrp.Velocity = Vector3.new(0, 0, 0)
+                        -- 相手の背後に固定
+                        local targetPos = tHRP.CFrame.Position + (tHRP.CFrame.LookVector * -2)
+                        hrp.CFrame = CFrame.new(targetPos, tHRP.Position)
+                    end
+                    if tool then tool:Activate() end
                 end
-                task.wait(0.01) -- 超高速振り
+                task.wait(0.01)
             end
         end)
-        
-        -- 見た目をON（赤）に変更
-        aimBtn.Text = "AIMBOT: ON"
-        aimBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
-        aimBtn.UIStroke.Color = Color3.fromRGB(255, 50, 50)
+
+        aimBtn.Text = "STICK: ON"
+        aimBtn.TextColor3 = Color3.fromRGB(0, 255, 127)
+        aimStroke.Color = Color3.fromRGB(0, 255, 127)
     else
-        -- 停止処理
+        -- 4. 停止処理
+        if typeof(abToggle) == "function" then abToggle() end
         if typeof(stopSpamBat) == "function" then stopSpamBat() end
+        if typeof(stopFloat) == "function" then stopFloat() end
         
-        -- 見た目をOFF（白）に変更
-        aimBtn.Text = "AIMBOT: OFF"
+        aimBtn.Text = "STICK: OFF"
         aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        aimBtn.UIStroke.Color = Color3.fromRGB(60, 60, 60)
+        aimStroke.Color = Color3.fromRGB(60, 60, 60)
     end
 
-    -- メインGUI同期
+    -- 5. GUI同期
     if VisualSetters then
         if VisualSetters.Aimbot then VisualSetters.Aimbot(isAimbotActive, true) end
         if VisualSetters.SpamBat then VisualSetters.SpamBat(isAimbotActive, true) end
+        if VisualSetters.Float then VisualSetters.Float(isAimbotActive, true) end
+    end
+end) -- ← これで完璧に閉じる！
+
+    if isAimbotActive then
+        -- 2. 機能起動
+        if typeof(abToggle) == "function" then abToggle() end
+        if typeof(startSpamBat) == "function" then startSpamBat() end
+        if typeof(startFloat) == "function" then startFloat() end
+
+        -- 3. 強制高度同期 & 攻撃ループ
+        (function()
+            while isAimbotActive do
+                local target = (typeof(getClosestPlayer) == "function") and getClosestPlayer()
+                local myChar = lp.Character
+                local hrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                
+                if target and target.Character and hrp then
+                    local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
+                    local tool = myChar:FindFirstChildOfClass("Tool")
+                    
+                    if tHRP then
+                        -- 重力を殺して、相手のY軸に強制固定
+                        hrp.Velocity = Vector3.new(0, 0, 0)
+                        hrp.CFrame = CFrame.new(hrp.Position.X, tHRP.Position.Y, hrp.Position.Z) * hrp.CFrame.Rotation
+                    end
+
+                    if tool then tool:Activate() end
+                end
+                task.wait(0.0task.spawn1)
+            end
+        end)
+
+        aimBtn.Text = "SYNC-FLOAT: ON"
+        aimBtn.TextColor3 = Color3.fromRGB(0, 255, 127)
+        aimStroke.Color = Color3.fromRGB(0, 255, 127)
+    else
+        -- 4. 停止処理
+        if typeof(abToggle) == "function" then abToggle() end
+        if typeof(stopSpamBat) == "function" then stopSpamBat() end
+        if typeof(stopFloat) == "function" then stopFloat() end
+        
+        aimBtn.Text = "SYNC-FLOAT: OFF"
+        aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        aimStroke.Color = Color3.fromRGB(60, 60, 60)
+    end
+
+    -- 5. GUI同期
+    if VisualSetters then
+        if VisualSetters.Aimbot then VisualSetters.Aimbot(isAimbotActive, true) end
+        if VisualSetters.SpamBat then VisualSetters.SpamBat(isAimbotActive, true) end
+        if VisualSetters.Float then VisualSetters.Float(isAimbotActive, true) end
     end
 end)
