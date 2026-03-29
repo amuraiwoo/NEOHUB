@@ -1974,7 +1974,7 @@ btn.MouseButton1Click:Connect(function()
     end
 end)
 -- ============================================================
--- QUICK AIMBOT & SPAM BAT & FLOAT (高度同期・修正版)
+-- QUICK AIMBOT & SPAM BAT & JUMP-SYNC (高度同期・完成版)
 -- ============================================================
 if pGui:FindFirstChild("ZAY_AimbotQuick") then
     pGui:FindFirstChild("ZAY_AimbotQuick"):Destroy()
@@ -1993,7 +1993,7 @@ aimBtn.Position = UDim2.new(1, -10, 0, 60)
 aimBtn.AnchorPoint = Vector2.new(1, 0)
 aimBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-aimBtn.Text = "SYNC-FLOAT: OFF"
+aimBtn.Text = "JUMP-SYNC: OFF"
 aimBtn.Font = Enum.Font.GothamBold
 aimBtn.TextSize = 14
 aimBtn.Draggable = true
@@ -2015,112 +2015,71 @@ local isAimbotActive = false
 aimBtn.MouseButton1Click:Connect(function()
     isAimbotActive = not isAimbotActive
     
-    -- 1. フラグ同期
+    -- フラグ同期
     if Enabled then
-        Enabled.Float = isAimbotActive
+        Enabled.Float = false -- Floatは検知回避のためOFF固定
         Enabled.Aimbot = isAimbotActive
         Enabled.SpamBat = isAimbotActive
     end
 
     if isAimbotActive then
-        -- 2. 機能起動
         if typeof(abToggle) == "function" then abToggle() end
         if typeof(startSpamBat) == "function" then startSpamBat() end
-        if typeof(startFloat) == "function" then startFloat() end
 
-        -- 3. 背後吸い付きループ
+        -- 【メインループ】ここを一本化しました
         task.spawn(function()
             while isAimbotActive do
                 local target = (typeof(getClosestPlayer) == "function") and getClosestPlayer()
                 local myChar = lp.Character
                 local hrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                local hum = myChar and myChar:FindFirstChildOfClass("Humanoid")
                 
-                if target and target.Character and hrp then
+                if target and target.Character and hrp and hum then
                     local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
                     local tool = myChar:FindFirstChildOfClass("Tool")
                     
                     if tHRP then
-                        -- 物理慣性を殺す
-                        hrp.Velocity = Vector3.new(0, 0, 0)
-                        -- 相手の背後に固定
-                        local targetPos = tHRP.CFrame.Position + (tHRP.CFrame.LookVector * -2)
-                        hrp.CFrame = CFrame.new(targetPos, tHRP.Position)
+                        local myPos = hrp.Position
+                        local tPos = tHRP.Position
+                        local yDiff = tPos.Y - myPos.Y
+
+                        -- 1. 高度合わせ（ジャンプ/Velocity）
+                        -- 相手より1.5以上低いなら上向きの力を加える
+                        if yDiff > 1.5 then
+                            hum.Jump = true
+                            if hrp.Velocity.Y < 15 then
+                                -- 数値(50)はジャンプ力。飛びすぎるなら40、足りなきゃ60。
+                                hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
+                            end
+                        end
+
+                        -- 2. 横位置（背後）と向きの計算
+                        local tLook = tHRP.CFrame.LookVector
+                        local flatLook = Vector3.new(tLook.X, 0, tLook.Z).Unit
+                        
+                        -- 自分の今の高さを維持して背後へ（ジャンプの動きを邪魔しない）
+                        local backPos = Vector3.new(tPos.X, myPos.Y, tPos.Z) + (flatLook * -2.5)
+                        
+                        -- 座標更新
+                        hrp.CFrame = CFrame.lookAt(backPos, Vector3.new(tPos.X, myPos.Y, tPos.Z))
                     end
+
                     if tool then tool:Activate() end
                 end
                 task.wait(0.01)
             end
         end)
 
-        aimBtn.Text = "STICK: ON"
+        aimBtn.Text = "JUMP-SYNC: ON"
         aimBtn.TextColor3 = Color3.fromRGB(0, 255, 127)
         aimStroke.Color = Color3.fromRGB(0, 255, 127)
     else
-        -- 4. 停止処理
+        -- 停止処理
         if typeof(abToggle) == "function" then abToggle() end
         if typeof(stopSpamBat) == "function" then stopSpamBat() end
-        if typeof(stopFloat) == "function" then stopFloat() end
         
-        aimBtn.Text = "STICK: OFF"
+        aimBtn.Text = "JUMP-SYNC: OFF"
         aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         aimStroke.Color = Color3.fromRGB(60, 60, 60)
-    end
-
-    -- 5. GUI同期
-    if VisualSetters then
-        if VisualSetters.Aimbot then VisualSetters.Aimbot(isAimbotActive, true) end
-        if VisualSetters.SpamBat then VisualSetters.SpamBat(isAimbotActive, true) end
-        if VisualSetters.Float then VisualSetters.Float(isAimbotActive, true) end
-    end
-end) -- ← これで完璧に閉じる！
-
-    if isAimbotActive then
-        -- 2. 機能起動
-        if typeof(abToggle) == "function" then abToggle() end
-        if typeof(startSpamBat) == "function" then startSpamBat() end
-        if typeof(startFloat) == "function" then startFloat() end
-
-        -- 3. 強制高度同期 & 攻撃ループ
-        (function()
-            while isAimbotActive do
-                local target = (typeof(getClosestPlayer) == "function") and getClosestPlayer()
-                local myChar = lp.Character
-                local hrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-                
-                if target and target.Character and hrp then
-                    local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
-                    local tool = myChar:FindFirstChildOfClass("Tool")
-                    
-                    if tHRP then
-                        -- 重力を殺して、相手のY軸に強制固定
-                        hrp.Velocity = Vector3.new(0, 0, 0)
-                        hrp.CFrame = CFrame.new(hrp.Position.X, tHRP.Position.Y, hrp.Position.Z) * hrp.CFrame.Rotation
-                    end
-
-                    if tool then tool:Activate() end
-                end
-                task.wait(0.0task.spawn1)
-            end
-        end)
-
-        aimBtn.Text = "SYNC-FLOAT: ON"
-        aimBtn.TextColor3 = Color3.fromRGB(0, 255, 127)
-        aimStroke.Color = Color3.fromRGB(0, 255, 127)
-    else
-        -- 4. 停止処理
-        if typeof(abToggle) == "function" then abToggle() end
-        if typeof(stopSpamBat) == "function" then stopSpamBat() end
-        if typeof(stopFloat) == "function" then stopFloat() end
-        
-        aimBtn.Text = "SYNC-FLOAT: OFF"
-        aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        aimStroke.Color = Color3.fromRGB(60, 60, 60)
-    end
-
-    -- 5. GUI同期
-    if VisualSetters then
-        if VisualSetters.Aimbot then VisualSetters.Aimbot(isAimbotActive, true) end
-        if VisualSetters.SpamBat then VisualSetters.SpamBat(isAimbotActive, true) end
-        if VisualSetters.Float then VisualSetters.Float(isAimbotActive, true) end
     end
 end)
